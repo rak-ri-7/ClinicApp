@@ -1,0 +1,49 @@
+/* Auth.css */
+.auth-container {
+  display: flex;
+  justify-content: flex-end; /* Push content towards the right */
+  align-items: center;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+}
+
+.auth-box {
+  width: 350px;
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px); /* Glassmorphism Effect */
+  background: rgba(255, 255, 255, 0.2); /* Transparent Glass effect */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  margin-right: 10%; /* Adjust to move slightly left from the edge */
+}
+
+.auth-logo {
+  width: 80px;
+  margin-bottom: 15px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 5px;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  background-color: lightblue;
+  color: white;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: lightgreen;
+}

@@ -1,0 +1,9 @@
+.historyTtip {
+  fontsize: "0.95rem";
+  lineheight: 1.6;
+  maxwidth: 300;
+  padding: 1;
+  bgcolor: "background.paper";
+  color: "text.primary";
+  boxshadow: 3;
+}

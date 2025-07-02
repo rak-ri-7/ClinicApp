@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "clinicapp": "file:..",
+    "electron-is-dev": "^3.0.1",
+    "multer": "^2.0.0",
+    "xslx": "^1.0.0"
+  }
+}

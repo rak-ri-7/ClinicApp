@@ -1,0 +1,78 @@
+{
+  "name": "clinicapp",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "dev": "nodemon node backend/server.js",
+    "electron-dev": "npm run dev && electron .",
+    "build-front": "cd frontend/clinicfront && npm run build",
+    "build": "npm run build-front && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "electron-is-dev": "^3.0.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.10.2",
+    "multer": "^2.0.0",
+    "pdfkit": "^0.17.1",
+    "react-query": "^3.39.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.13.3",
+    "nodemon": "^3.1.9",
+    "rimraf": "^6.0.1"
+  },
+  "build": {
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/clinicfront/build",
+        "to": "react-build"
+      },
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "backend/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "extraResources": [
+        {
+          "from": "frontend/clinicfront/build",
+          "to": "react-build"
+        },
+        {
+          "from": "backend",
+          "to": "backend",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
+    }
+  }
+}

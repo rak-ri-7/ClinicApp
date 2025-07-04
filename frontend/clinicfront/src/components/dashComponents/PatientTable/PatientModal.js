@@ -35,7 +35,7 @@ import { XrayFeeContext } from "../../../context/XrayFeeContext";
 import { LabContext } from "../../../context/LabContext";
 import { DoctorsContext } from "../../../context/DoctorsContext";
 import { useNotification } from "../../../context/NotificationContext";
-import MedicineSelection from "./MedicineSelection"; // Make sure this path is correct
+import MedicineSelection from "./MedicineSelection";
 
 const getInitialVisitData = () => ({
   _id: `new_${Date.now()}`,
@@ -49,8 +49,8 @@ const getInitialVisitData = () => ({
   selectedLab: "",
   labCharge: 0,
   specialistFee: 0,
-  visitCharge: 0, // <-- NEW: Charge for the specific visit
-  totalCharge: 0, // Cumulative charge
+  visitCharge: 0,
+  totalCharge: 0,
   paidAmount: 0,
   paymentMode: "Gpay",
   pendingAmount: 0,
@@ -85,6 +85,81 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
     totalEarnings: 0,
   });
 
+  // --- START OF THE FIX ---
+
+  // 1. Create a dedicated calculation function. This makes the logic reusable.
+  const calculateVisitCharges = useCallback(
+    (visits) => {
+      let cumulativeCharge = 0;
+      let cumulativePaid = 0;
+      let cumulativeEarnings = 0;
+
+      return visits.map((visit) => {
+        if (visit.isDuesPayment) {
+          const duesPaidAmount = Number(visit.paidAmount) || 0;
+          cumulativePaid += duesPaidAmount;
+          cumulativeEarnings += duesPaidAmount;
+
+          return {
+            ...visit,
+            visitCharge: 0,
+            totalCharge: cumulativeCharge,
+            pendingAmount: cumulativeCharge - cumulativePaid,
+            totalEarnings: cumulativeEarnings,
+          };
+        } else {
+          const treatmentCharge =
+            (visit.treatments || []).reduce(
+              (sum, t) => sum + (Number(t.price) || 0),
+              0
+            ) || 0;
+          const medicineCharge =
+            (visit.selectedMedicines || visit.medicines || []).reduce(
+              (sum, m) => sum + (m.pricePerUnit || 0) * (m.quantity || 0),
+              0
+            ) || 0;
+          const consultationFeeAmount = visit.includeConsultationFee
+            ? Number(consultationFee)
+            : 0;
+          const xrayFeeAmount = visit.includeXrayFee ? Number(xrayFee) : 0;
+          const labCharge = Number(visit.labCharge) || 0;
+
+          const incrementalChargeForThisVisit =
+            treatmentCharge +
+            medicineCharge +
+            labCharge +
+            consultationFeeAmount +
+            xrayFeeAmount;
+
+          const selectedDoctor = doctors.find(
+            (doc) => doc.name === visit.doctor
+          );
+          const specialistFee =
+            selectedDoctor && selectedDoctor.name !== "Swathi Lakshmi"
+              ? ((selectedDoctor.percentageCut || 0) / 100) * treatmentCharge
+              : 0;
+
+          const paidForThisVisit = Number(visit.paidAmount) || 0;
+          cumulativeCharge += incrementalChargeForThisVisit;
+          cumulativePaid += paidForThisVisit;
+          const incrementalEarnings =
+            paidForThisVisit - specialistFee - labCharge;
+          cumulativeEarnings += incrementalEarnings;
+
+          return {
+            ...visit,
+            visitCharge: incrementalChargeForThisVisit, // The important field
+            totalCharge: cumulativeCharge,
+            pendingAmount: cumulativeCharge - cumulativePaid,
+            totalEarnings: cumulativeEarnings,
+            specialistFee,
+          };
+        }
+      });
+    },
+    [consultationFee, xrayFee, doctors]
+  );
+
   useEffect(() => {
     if (open) {
       setDuesPaid("");
@@ -92,57 +167,46 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
       setDuesPaymentMode("Cash");
 
       if (patient) {
-        const snapshot = {
-          profile: patient
-            ? {
-                name: patient.name || "",
-                age: patient.age || "",
-                gender: patient.gender || "",
-                phoneNumber: patient.phoneNumber || "",
-                address: patient.address || "",
-                additionalInfo: patient.additionalInfo || "",
-                medicalHistory: patient.medicalHistory || "",
-                dentalHistory: patient.dentalHistory || "",
-                nextAppointment: patient.nextAppointment?.split("T")[0] || "",
-              }
-            : {},
-          visits:
-            patient?.visitHistory?.length > 0
-              ? [...patient.visitHistory]
-              : [getInitialVisitData()],
-        };
-
-        setInitialState(JSON.parse(JSON.stringify(snapshot)));
-        setProfileData({
-          name: patient.name || "",
-          age: patient.age || "",
-          gender: patient.gender || "",
-          phoneNumber: patient.phoneNumber || "",
-          address: patient.address || "",
-          additionalInfo: patient.additionalInfo || "",
-          medicalHistory: patient.medicalHistory || "",
-          dentalHistory: patient.dentalHistory || "",
-          nextAppointment: patient.nextAppointment?.split("T")[0] || "",
-        });
-
-        const initialVisits =
+        // Prepare a deep copy for snapshotting
+        const snapshotVisits =
           patient.visitHistory?.length > 0
-            ? patient.visitHistory.map((v) => ({
-                ...v,
-                date: dayjs(v.date).format("YYYY-MM-DD"),
-              }))
+            ? JSON.parse(JSON.stringify(patient.visitHistory))
             : [getInitialVisitData()];
-        setManagedVisits(
-          initialVisits.map((v) => ({
-            ...v,
-            treatments:
-              v.treatments?.length > 0
-                ? v.treatments
-                : [{ name: "", price: "" }],
-            selectedMedicines: v.medicines || [],
-          }))
-        );
-        setActiveVisitIndex(initialVisits.length - 1);
+        const snapshot = {
+          profile: {
+            name: patient.name || "",
+            age: patient.age || "",
+            gender: patient.gender || "",
+            phoneNumber: patient.phoneNumber || "",
+            address: patient.address || "",
+            additionalInfo: patient.additionalInfo || "",
+            medicalHistory: patient.medicalHistory || "",
+            dentalHistory: patient.dentalHistory || "",
+            nextAppointment: patient.nextAppointment?.split("T")[0] || "",
+          },
+          visits: snapshotVisits,
+        };
+        setInitialState(snapshot);
+
+        setProfileData({ ...snapshot.profile });
+
+        // 2. Prepare the initial visits from the patient prop
+        const initialVisits = (
+          patient.visitHistory?.length > 0
+            ? patient.visitHistory
+            : [getInitialVisitData()]
+        ).map((v) => ({
+          ...v,
+          date: dayjs(v.date).format("YYYY-MM-DD"),
+          treatments:
+            v.treatments?.length > 0 ? v.treatments : [{ name: "", price: "" }],
+          selectedMedicines: v.medicines || [],
+        }));
+
+        // 3. Immediately run the calculation on these initial visits
+        const calculatedVisits = calculateVisitCharges(initialVisits);
+        setManagedVisits(calculatedVisits);
+        setActiveVisitIndex(calculatedVisits.length - 1);
       } else {
         const newPatientProfile = {
           name: "",
@@ -156,106 +220,31 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
           nextAppointment: "",
         };
         const newPatientVisits = [getInitialVisitData()];
-
-        // 2. Create the snapshot from this clean state.
         const snapshot = {
           profile: newPatientProfile,
           visits: newPatientVisits,
         };
-
-        // 3. Set the initial state snapshot AND the current form state.
-        // This is the crucial step that was missing.
         setInitialState(JSON.parse(JSON.stringify(snapshot)));
-        setProfileData({ name: "", age: "", gender: "", phoneNumber: "" });
-        setManagedVisits([getInitialVisitData()]);
+        setProfileData(newPatientProfile);
+        setManagedVisits(newPatientVisits);
         setActiveVisitIndex(0);
       }
     }
-  }, [patient, open]);
+  }, [patient, open, calculateVisitCharges]);
 
   useEffect(() => {
     if (!open) return;
 
-    let cumulativeCharge = 0;
-    let cumulativePaid = 0;
-    let cumulativeEarnings = 0;
+    // 4. This second useEffect now just re-calculates when things change *during* an edit session
+    const recalculatedVisits = calculateVisitCharges(managedVisits);
 
-    const newManagedVisits = managedVisits.map((visit) => {
-      const visitToProcess = { ...visit };
-
-      if (visit.isDuesPayment) {
-        const duesPaidAmount = Number(visit.paidAmount) || 0;
-        cumulativePaid += duesPaidAmount;
-        cumulativeEarnings += duesPaidAmount;
-
-        return {
-          ...visitToProcess,
-          visitCharge: 0, // <-- NEW: No specific charge for a dues payment
-          totalCharge: cumulativeCharge,
-          pendingAmount: cumulativeCharge - cumulativePaid,
-          totalEarnings: cumulativeEarnings,
-          treatmentCharge: 0,
-          medicineCharge: 0,
-          specialistFee: 0,
-          labCharge: 0,
-        };
-      } else {
-        const treatmentCharge =
-          visit.treatments?.reduce(
-            (sum, t) => sum + (Number(t.price) || 0),
-            0
-          ) || 0;
-        const medicineCharge =
-          visit.selectedMedicines?.reduce(
-            (sum, m) => sum + (m.pricePerUnit || 0) * (m.quantity || 0),
-            0
-          ) || 0;
-        const consultationFeeAmount = visit.includeConsultationFee
-          ? Number(consultationFee)
-          : 0;
-        const xrayFeeAmount = visit.includeXrayFee ? Number(xrayFee) : 0;
-        const labCharge = Number(visit.labCharge) || 0;
-
-        const selectedDoctor = doctors.find((doc) => doc.name === visit.doctor);
-        const specialistFee =
-          selectedDoctor && selectedDoctor.name !== "Swathi Lakshmi"
-            ? ((selectedDoctor.percentageCut || 0) / 100) * treatmentCharge
-            : 0;
-
-        // <-- NEW: Calculate the charge for THIS visit only
-        const incrementalChargeForThisVisit =
-          treatmentCharge +
-          medicineCharge +
-          labCharge +
-          consultationFeeAmount +
-          xrayFeeAmount;
-
-        const paidForThisVisit = Number(visit.paidAmount) || 0;
-
-        cumulativeCharge += incrementalChargeForThisVisit;
-        cumulativePaid += paidForThisVisit;
-
-        const incrementalEarnings =
-          paidForThisVisit - specialistFee - labCharge;
-        cumulativeEarnings += incrementalEarnings;
-
-        return {
-          ...visitToProcess,
-          treatmentCharge,
-          medicineCharge,
-          specialistFee,
-          visitCharge: incrementalChargeForThisVisit, // <-- NEW: Store the specific visit charge
-          totalCharge: cumulativeCharge,
-          pendingAmount: cumulativeCharge - cumulativePaid,
-          totalEarnings: cumulativeEarnings,
-        };
-      }
-    });
-
-    if (JSON.stringify(newManagedVisits) !== JSON.stringify(managedVisits)) {
-      setManagedVisits(newManagedVisits);
+    // Only update state if there's an actual change to prevent infinite loops
+    if (JSON.stringify(recalculatedVisits) !== JSON.stringify(managedVisits)) {
+      setManagedVisits(recalculatedVisits);
     }
-  }, [managedVisits, consultationFee, xrayFee, doctors, open]);
+  }, [managedVisits, open, calculateVisitCharges]);
+
+  // --- END OF THE FIX ---
 
   useEffect(() => {
     if (!open || !patient) {
@@ -642,9 +631,7 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
           )}
 
           <Grid container spacing={4}>
-            {/* Left Column: Patient & Visit Details */}
             <Grid item xs={12} md={6}>
-              {/* ... The entire left column JSX remains unchanged ... */}
               <Stack spacing={2}>
                 <Typography variant="h6">Patient Details</Typography>
                 <TextField
@@ -769,7 +756,7 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
                 />
               </Stack>
             </Grid>
-            {/* Right Column: Financials & Treatments */}
+
             <Grid item xs={12} md={6}>
               <Stack spacing={2}>
                 <FormControlLabel
@@ -937,25 +924,22 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
                   />
                 </Stack>
 
-                {/* ======================= NEW/MODIFIED FIELDS START HERE ======================= */}
                 {!activeVisitData.isDuesPayment && (
                   <TextField
-                    name="thisVisitCharge"
+                    name="visitCharge"
                     label="Charge for This Visit"
                     fullWidth
                     type="number"
-                    value={
-                      activeVisitData.thisVisitCharge?.toFixed(2) || "0.00"
-                    }
+                    value={activeVisitData.visitCharge?.toFixed(2) || "0.00"}
                     disabled
                     InputProps={{ readOnly: true }}
-                    sx={{ backgroundColor: "#f0f4c3" }} // Highlight this field
+                    sx={{ backgroundColor: "#f0f4c3" }}
                   />
                 )}
 
                 <TextField
                   name="totalCharge"
-                  label="Cumulative Total Charge" // <-- MODIFIED LABEL
+                  label="Cumulative Total Charge"
                   fullWidth
                   type="number"
                   value={activeVisitData.totalCharge?.toFixed(2) || "0.00"}
@@ -965,7 +949,7 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
 
                 <TextField
                   name="paidAmount"
-                  label="Amount Paid (This Visit/Payment)" // <-- MODIFIED LABEL
+                  label="Amount Paid (This Visit/Payment)"
                   fullWidth
                   type="number"
                   value={
@@ -990,7 +974,7 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
 
                 <TextField
                   name="pendingAmount"
-                  label="Cumulative Pending Amount" // <-- MODIFIED LABEL
+                  label="Cumulative Pending Amount"
                   fullWidth
                   type="number"
                   value={
@@ -1004,19 +988,17 @@ const PatientModal = ({ patient, open, onClose, onUpdated }) => {
 
                 <TextField
                   name="totalEarnings"
-                  label="Cumulative Total Earnings" // <-- MODIFIED LABEL
+                  label="Cumulative Total Earnings"
                   fullWidth
                   type="number"
                   value={activeVisitData.totalEarnings?.toFixed(2) || "0.00"}
                   disabled
                   InputProps={{ readOnly: true }}
                 />
-                {/* ======================= NEW/MODIFIED FIELDS END HERE ======================= */}
               </Stack>
             </Grid>
           </Grid>
 
-          {/* Dues Payment Section ... */}
           {patient && (
             <>
               <Divider sx={{ my: 3 }}>

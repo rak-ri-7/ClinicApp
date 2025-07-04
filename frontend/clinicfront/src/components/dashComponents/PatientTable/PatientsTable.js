@@ -38,6 +38,7 @@ import { usePatientContext } from "../../../context/PatientContext";
 import truncateWords from "../../../utils/truncateWords";
 import dayjs from "dayjs";
 import { formatEarnings } from "../../../utils/formatters";
+import PatientActions from "./PatientActions";
 
 // --- Components & Styles (No changes needed here) ---
 
@@ -47,6 +48,7 @@ const TableToolbar = ({
   onExport,
   onDoctors,
   onInventory,
+  onImportSuccess,
 }) => (
   <Box
     sx={{
@@ -66,14 +68,7 @@ const TableToolbar = ({
       sx={{ minWidth: "300px", flexGrow: 1 }}
     />
     <Stack direction="row" spacing={1.5}>
-      <Button
-        variant="outlined"
-        color="secondary"
-        startIcon={<FileDownload />}
-        onClick={onExport}
-      >
-        Export Excel
-      </Button>
+      <PatientActions onImportSuccess={onImportSuccess} />
       <Button
         variant="outlined"
         color="secondary"
@@ -138,6 +133,11 @@ const PatientsTable = () => {
     } catch (error) {
       console.error("Error fetching patients:", error);
     }
+  };
+
+  const handleRefreshData = () => {
+    // The function that re-fetches all patients to update the table
+    fetchPatients();
   };
 
   const handleExcelExport = async () => {
@@ -317,6 +317,7 @@ const PatientsTable = () => {
         onExport={handleExcelExport}
         onDoctors={() => setDoctorsModalOpen(true)}
         onInventory={() => setInventoryModalOpen(true)}
+        onImportSuccess={handleRefreshData}
       />
       <TableContainer>
         <Table aria-label="professional patients table">

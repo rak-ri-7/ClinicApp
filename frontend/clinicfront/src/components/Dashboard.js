@@ -21,7 +21,7 @@ import CalendarComponent from "./dashComponents/Calendar/Calendar";
 import DailyActivityChart from "./dashComponents/DailyChart/DailyActivityChart";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import ExcelImporter from "../utils/ImportExcel";
+
 import { MedicinesContext } from "../context/MedicinesContext";
 
 // Icons for the header
@@ -201,7 +201,6 @@ const Dashboard = () => {
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
             Patient Repository
           </Typography>
-          <ExcelImporter onImportSuccess={fetchPatients} />
         </Box>
         <PatientsTable key={refresh} />
       </Box>

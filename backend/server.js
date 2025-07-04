@@ -18,20 +18,34 @@ const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+// --- 1. Centralized CORS Configuration (The Fix) ---
+// We define the options once and use them once.
+// This is the single source of truth for your CORS policy.
+const corsOptions = {
+  origin: "http://localhost:3000", // The address of your React app
+  credentials: true, // Allows cookies and authorization headers to be sent
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions)); // Use the CORS middleware ONCE, right at the top.
 
-// Routes
-app.use("/api/patients", patientRoutes);
+// --- 2. Body Parser Middleware (MUST come AFTER CORS) ---
+// This is essential for your backend to read JSON bodies from requests.
+app.use(express.json());
+
+// --- 3. API Routes ---
+// Grouping related routes under a common, specific base path is good practice.
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/patients", patientRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/doctors", doctorRoutes);
-app.use("/api", exportRoutes);
-app.use("/api", uploadRoutes);
 
-// Start the server after connecting to the database
+// --- 4. Specific Routes for Import/Export (The Fix) ---
+// This avoids conflicts and makes the URLs in your frontend more logical.
+app.use("/api/export", exportRoutes); // All routes in exportRoutes will be prefixed with /api/export
+app.use("/api/upload", uploadRoutes); // All routes in uploadRoutes will be prefixed with /api/upload
+
+// --- 5. Start the Server ---
 const startServer = async () => {
   try {
     await connectDB();

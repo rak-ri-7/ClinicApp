@@ -39,6 +39,7 @@ const VisitHistorySchema = new mongoose.Schema({
   includeConsultationFee: { type: Boolean, default: false },
   includeXrayFee: { type: Boolean, default: false },
   isDuesPayment: { type: Boolean, default: false },
+  isFollowUp: { type: Boolean, default: false },
   visitCharge: { type: Number, default: 0 },
 });
 

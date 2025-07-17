@@ -5,11 +5,18 @@ const doctorSchema = new mongoose.Schema({
   role: { type: String, default: "Specialist Doctor" },
   specialization: { type: String, required: true },
   experience: { type: String, required: true },
-  percentageCut: { type: String, required: true },
+  percentageCut: { type: Number, required: true },
   additionalInfo: {
     type: String,
     default: "",
   },
+  paymentModel: {
+    type: String,
+    enum: ["Percentage", "Fixed"],
+    default: "Percentage",
+    required: true,
+  },
+  role: { type: String },
 });
 
 module.exports = mongoose.model("Doctor", doctorSchema);

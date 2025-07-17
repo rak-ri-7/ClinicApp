@@ -19,6 +19,15 @@ import api from "../../../api.js";
 import { DoctorsContext } from "../../../context/DoctorsContext.js";
 import CloseIcon from "@mui/icons-material/Close";
 
+const getIniitalFormData = () => ({
+  name: "",
+  specialization: "",
+  experience: "",
+  paymentModel: "Percentage", // Default to Percentage
+  percentageCut: 70,
+  additionalInfo: "",
+});
+
 const Doctors = ({ onClose }) => {
   console.log("Doctors rendered"); // Should log in DevTools
   const navigate = useNavigate();
@@ -29,18 +38,11 @@ const Doctors = ({ onClose }) => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [editingDoctor, setEditingDoctor] = useState(null);
+  const [formData, setFormData] = useState(getIniitalFormData());
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
-
-  const [formData, setFormData] = useState({
-    name: "",
-    specialization: "",
-    experience: "",
-    percentageCut: 70,
-    additionalInfo: "",
-  });
 
   useEffect(() => {
     fetchDoctors();
@@ -59,6 +61,7 @@ const Doctors = ({ onClose }) => {
       name: doctor.name,
       specialization: doctor.specialization,
       experience: doctor.experience,
+      paymentModel: doctor.paymentModel || "Percentage",
       percentageCut: doctor.percentageCut,
       additionalInfo: doctor.additionalInfo || "70%",
     });
@@ -77,13 +80,7 @@ const Doctors = ({ onClose }) => {
       }
 
       setAddModalOpen(false);
-      setFormData({
-        name: "",
-        specialization: "",
-        experience: "",
-        percentageCut: 70,
-        additionalInfo: "",
-      });
+      setFormData(getIniitalFormData());
       await fetchDoctors(); // refresh
     } catch (error) {
       console.error("Error adding doctor", error);
@@ -232,18 +229,21 @@ const Doctors = ({ onClose }) => {
 
                     {/* Column 2 */}
                     <Box sx={{ flex: 1 }}>
-                      <Box mb={2}>
+                      {/* MODIFIED: Display payment model info */}
+                      <Typography>
+                        <strong>Payment Model:</strong>{" "}
+                        {doctor.paymentModel || "Percentage"}
+                      </Typography>
+                      {doctor.paymentModel !== "Fixed" && (
                         <Typography>
                           <strong>Percentage Cut:</strong>{" "}
                           {doctor.percentageCut}%
                         </Typography>
-                      </Box>
-                      <Box mb={2}>
-                        <Typography>
-                          <strong>Additional Info:</strong>{" "}
-                          {doctor.additionalInfo || "N/A"}
-                        </Typography>
-                      </Box>
+                      )}
+                      <Typography>
+                        <strong>Additional Info:</strong>{" "}
+                        {doctor.additionalInfo || "N/A"}
+                      </Typography>
                     </Box>
                   </Box>
                 </AccordionDetails>

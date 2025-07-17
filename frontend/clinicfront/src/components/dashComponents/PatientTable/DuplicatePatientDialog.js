@@ -20,6 +20,7 @@ const DuplicatePatientDialog = ({
   duplicates,
   onConfirmNew,
   onClose,
+  onCancel,
 }) => {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -58,7 +59,7 @@ const DuplicatePatientDialog = ({
         </List>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="secondary">
+        <Button onClick={onCancel} color="secondary">
           It's One of These (Cancel)
         </Button>
         <Button onClick={onConfirmNew} variant="contained" color="primary">

@@ -76,16 +76,6 @@ const MedicineSelection = ({
           Medicine Total: ₹{medicineTotal.toFixed(2)}
         </Typography>
       </Box>
-
-      <TextField
-        name="medicineCharge"
-        label="Medicine Charge"
-        fullWidth
-        type="number"
-        value={medicineTotal}
-        margin="normal"
-        disabled
-      />
     </>
   );
 };

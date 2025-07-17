@@ -230,7 +230,11 @@ const PatientsTable = () => {
       const latestVisit =
         patient.visitHistory?.[patient.visitHistory.length - 1] || {};
 
-      // All your existing mapping logic is correct and stays here.
+      const lastClinicalVisit =
+        [...(patient.visitHistory || [])]
+          .reverse()
+          .find((visit) => !visit.isDuesPayment) || {};
+
       const totalPaid =
         (patient.duesPaidHistory?.reduce((acc, due) => acc + due.amount, 0) ||
           0) +
@@ -262,7 +266,7 @@ const PatientsTable = () => {
         isDuesPayment: latestVisit.isDuesPayment || false,
         doctor: latestVisit.doctor || "N/A",
         date: latestVisit.date,
-        chiefComplaint: latestVisit.chiefComplaint || "N/A",
+        chiefComplaint: lastClinicalVisit.chiefComplaint || "N/A",
         treatments: latestVisit.treatments || [],
         paymentMode: latestVisit.paymentMode,
         totalCharge: latestVisit.totalCharge || 0,
@@ -328,7 +332,9 @@ const PatientsTable = () => {
               <TableCell sx={headerCellStyles}>Last Visit</TableCell>
               <TableCell sx={headerCellStyles}>Next Appointment</TableCell>
               <TableCell sx={headerCellStyles}>Chief Complaint</TableCell>
-              <TableCell sx={headerCellStyles}>Treatments Done</TableCell>
+              <TableCell sx={headerCellStyles}>
+                Treatments Done (Last Visit)
+              </TableCell>
               <TableCell sx={headerCellStyles} align="right">
                 Total Charge (₹)
               </TableCell>

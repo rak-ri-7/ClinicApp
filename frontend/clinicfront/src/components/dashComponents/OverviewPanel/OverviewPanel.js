@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react"; // Add useContext
 import /* ... MUI imports ... */ "@mui/material";
 import api from "../../../api";
+import dayjs from "dayjs";
 import { MedicinesContext } from "../../../context/MedicinesContext"; // Import the context
 import { formatPendingAmount } from "../../../utils/formatters";
 import {
@@ -10,7 +11,11 @@ import {
   Grid,
   Box,
   CircularProgress,
-  Tooltip, // Import Tooltip
+  List,
+  Tooltip,
+  Divider,
+  ListItem,
+  ListItemText,
 } from "@mui/material";
 
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
@@ -20,6 +25,30 @@ import HourglassTopIcon from "@mui/icons-material/HourglassTop";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+
+const PatientListTooltip = ({ title, patients }) => {
+  if (!patients || patients.length === 0) {
+    return <Typography sx={{ p: 1 }}>No patients to show</Typography>;
+  }
+  return (
+    <Box>
+      <Typography sx={{ p: 1, fontWeight: "bold" }}>{title}</Typography>
+      <Divider />
+      <List dense sx={{ maxHeight: 300, overflow: "auto", p: 0 }}>
+        {patients.map((patient, index) => (
+          <ListItem key={index} sx={{ px: 1.5, py: 0.5 }}>
+            <ListItemText
+              primary={patient.name}
+              secondary={
+                patient.date ? `on ${dayjs(patient.date).format("DD MMM")}` : ""
+              }
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+};
 
 // StatCardMinimal component remains the same as the last version (with the color prop)
 const StatCardMinimal = ({
@@ -94,6 +123,9 @@ const OverviewPanel = () => {
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [patientsWithDuesList, setPatientsWithDuesList] = useState([]);
+  const [upcomingAppointmentsList, setUpcomingAppointmentsList] = useState([]);
+
   // *** 1. Consume the MedicinesContext directly inside this component ***
   const { lowStockMedicines } = useContext(MedicinesContext);
 
@@ -129,6 +161,21 @@ const OverviewPanel = () => {
         const returningPatients = patients.filter(
           (p) => p.appointmentHistory && p.appointmentHistory.length > 1
         ).length;
+        const duePatients = patients
+          .filter((p) => Number(p.pendingAmount) > 0)
+          .map((p) => ({ name: p.name })); // Store name
+
+        const appointmentPatients = patients
+          .filter(
+            (p) =>
+              p.nextAppointment &&
+              dayjs(p.nextAppointment).isAfter(dayjs().subtract(1, "day"))
+          )
+          .map((p) => ({ name: p.name, date: p.nextAppointment })) // Store name and date
+          .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+
+        setPatientsWithDuesList(duePatients);
+        setUpcomingAppointmentsList(appointmentPatients);
 
         setStats({
           totalPatients,
@@ -197,12 +244,16 @@ const OverviewPanel = () => {
       Icon: ErrorOutlineIcon,
       value: formatNumber(stats?.patientsWithPending),
       isLoading: isLoading,
+      tooltipTitle: "Patients with Outstanding Dues",
+      tooltipData: patientsWithDuesList,
     },
     {
       title: "Upcoming Appointments",
       Icon: EventNoteIcon,
       value: formatNumber(stats?.upcomingAppointments),
       isLoading: isLoading,
+      tooltipTitle: "Upcoming Appointments",
+      tooltipData: upcomingAppointmentsList,
     },
   ];
 
@@ -218,15 +269,51 @@ const OverviewPanel = () => {
       <Grid container spacing={3}>
         {cardData.map((card, index) => (
           <Grid item xs={12} sm={6} md={4} key={index}>
-            <StatCardMinimal
-              title={card.title}
-              Icon={card.Icon}
-              // The isLoading prop is now much simpler
-              isLoading={card.isLoading}
-              value={card.isLoading ? "..." : card.value}
-              subValue={card.subValue}
-              color={card.color}
-            />
+            {card.tooltipData && card.tooltipData.length > 0 ? (
+              <Tooltip
+                title={
+                  <PatientListTooltip
+                    title={card.tooltipTitle}
+                    patients={card.tooltipData}
+                  />
+                }
+                placement="top"
+                arrow
+                componentsProps={{
+                  tooltip: {
+                    sx: {
+                      backgroundColor: "common.white",
+                      color: "text.primary",
+                      boxShadow: 3,
+                      p: 0, // Let our inner component control padding
+                      maxWidth: 300, // Prevent tooltip from becoming too wide
+                    },
+                  },
+                }}
+              >
+                {/* The div wrapper is essential for the Tooltip to attach events */}
+                <div>
+                  <StatCardMinimal
+                    title={card.title}
+                    Icon={card.Icon}
+                    isLoading={card.isLoading}
+                    value={card.isLoading ? "..." : card.value}
+                    subValue={card.subValue}
+                    color={card.color}
+                  />
+                </div>
+              </Tooltip>
+            ) : (
+              // Render the card without a tooltip if no data
+              <StatCardMinimal
+                title={card.title}
+                Icon={card.Icon}
+                isLoading={card.isLoading}
+                value={card.isLoading ? "..." : card.value}
+                subValue={card.subValue}
+                color={card.color}
+              />
+            )}
           </Grid>
         ))}
       </Grid>

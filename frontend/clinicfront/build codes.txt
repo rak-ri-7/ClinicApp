@@ -1,0 +1,1 @@
+PS D:\JeT\WorksPace\Superbotics\ClinicApp> pkg backend/server.js --targets node18-win-x64 --output clinic-backend.exe                     
